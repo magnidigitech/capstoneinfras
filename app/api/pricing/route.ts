@@ -4,10 +4,9 @@ import { query } from '@/lib/db';
 import path from 'path';
 import { promises as fs } from 'fs';
 
-const dataFilePath = path.join(process.cwd(), 'data', 'pricing.json');
-
 export async function GET() {
     try {
+        const dataFilePath = path.join(process.cwd(), 'data', 'pricing.json');
         const fileContents = await fs.readFile(dataFilePath, 'utf8');
         const data = JSON.parse(fileContents);
 
