@@ -1,19 +1,23 @@
-import mysql from 'mysql2/promise';
-
 /**
- * Database abstraction layer with connection pooling and advanced error handling.
- * Designed for reliability on shared hosting environments like Hostinger.
+ * Database abstraction layer with connection pooling and dynamic driver loading.
+ * This is the ultimate "safety" version for Hostinger deployment.
  */
 
-let pool: mysql.Pool | null = null;
+let pool: any = null;
 
 /**
- * Lazy-initializes the database pool to prevent connection errors during app boot.
+ * Lazy-initializes the database pool using dynamic imports.
+ * This ensures the application can boot even if the database driver
+ * encounters environment-specific issues on the server.
  */
-function getPool() {
-    if (!pool) {
-        // Standard MySQL configuration using environment variables
-        const config: mysql.PoolOptions = {
+async function getPool() {
+    if (pool) return pool;
+
+    try {
+        // Dynamic import to prevent startup crashes if the module fails to load at the top level
+        const mysql = await import('mysql2/promise');
+
+        const config = {
             host: process.env.DB_HOST || 'localhost',
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
@@ -25,29 +29,33 @@ function getPool() {
             keepAliveInitialDelay: 10000,
         };
 
-        // Basic verification of required fields
         if (!config.user || !config.password) {
-            console.warn('[DB] WARNING: MySQL credentials (DB_USER/DB_PASSWORD) are not configured.');
+            console.warn('[DB] Database credentials missing in environment variables.');
         }
 
         pool = mysql.createPool(config);
+        return pool;
+    } catch (error: any) {
+        console.error('[DB] CRITICAL: Failed to load MySQL driver or initialize pool:', error.message);
+        // Return a mock that allows the app to stay live but logs errors on data access
+        return {
+            execute: async () => {
+                throw new Error("Database driver failed to load: " + error.message);
+            }
+        };
     }
-    return pool;
 }
 
 /**
- * Execute a SQL query with automatic error logging and connection management.
+ * Execute a SQL query with standard error handling.
  */
 export async function query(sql: string, params?: any[]) {
     try {
-        const poolInstance = getPool();
-        const [results] = await poolInstance.execute(sql, params);
+        const p = await getPool();
+        const [results] = await p.execute(sql, params);
         return results;
     } catch (error: any) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[DB] Query Error: ${errorMessage}`, { sql, params });
-
-        // Re-throw so the API can decide how to handle the failure (e.g., fallback or 500)
+        console.error(`[DB] Query failed: ${error.message}`);
         throw error;
     }
 }
