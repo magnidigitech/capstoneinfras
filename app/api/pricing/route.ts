@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
-
+import { query } from '@/lib/db';
 import path from 'path';
 import { promises as fs } from 'fs';
 
+/**
+ * Standard GET handler for Pricing.
+ * Loads from static JSON for 100% availability on Hostinger.
+ */
 export async function GET() {
     try {
         const dataFilePath = path.join(process.cwd(), 'data', 'pricing.json');
         const fileContents = await fs.readFile(dataFilePath, 'utf8');
         const data = JSON.parse(fileContents);
 
-        // Ensure keys are normalized for the calculator even in JSON
         const normalizedPackages: Record<string, any> = {};
         const normalizedFeatures: Record<string, string[]> = {};
 
@@ -28,20 +31,19 @@ export async function GET() {
             packageFeatures: normalizedFeatures
         });
     } catch (error: any) {
-        console.error('Error reading pricing JSON:', error);
-        return NextResponse.json({ error: 'Failed to read pricing data' }, { status: 500 });
+        console.error('[API] Pricing GET Error:', error.message);
+        return NextResponse.json({ error: 'Data source is temporarily unavailable' }, { status: 503 });
     }
 }
 
+/**
+ * POST handler for Admin Pricing updates.
+ * PERSISTS to MySQL for the Admin Dashboard.
+ */
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        // This is for updating packages from the admin side
-        // Expecting an array or a specific package object
-        // For now, let's support updating a single package by ID
         const { id, package_name, rate_per_sqft, features, materials_json } = body;
-
-        const { query } = await import('@/lib/db');
 
         if (id) {
             await query(
@@ -56,8 +58,8 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('Error writing pricing data to DB:', error);
-        return NextResponse.json({ error: 'Failed to save data' }, { status: 500 });
+    } catch (error: any) {
+        console.error('[API] Pricing POST Error:', error.message);
+        return NextResponse.json({ error: 'Failed to update pricing records' }, { status: 500 });
     }
 }
