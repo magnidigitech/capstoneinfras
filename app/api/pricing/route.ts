@@ -1,35 +1,37 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+import path from 'path';
+import { promises as fs } from 'fs';
+
+const dataFilePath = path.join(process.cwd(), 'data', 'pricing.json');
+
 export async function GET() {
     try {
-        const results: any = await query('SELECT * FROM packages');
+        const fileContents = await fs.readFile(dataFilePath, 'utf8');
+        const data = JSON.parse(fileContents);
 
-        const packages: Record<string, any> = {};
-        const packageFeatures: Record<string, string[]> = {};
+        // Ensure keys are normalized for the calculator even in JSON
+        const normalizedPackages: Record<string, any> = {};
+        const normalizedFeatures: Record<string, string[]> = {};
 
-        results.forEach((pkg: any) => {
-            // Normalize key: 'Value Plus' -> 'valueplus' to match frontend expectations
-            const key = pkg.package_name.toLowerCase().replace(/\s+/g, '');
-
-            packages[key] = {
-                id: pkg.id,
-                name: pkg.package_name,
-                price: parseFloat(pkg.rate_per_sqft),
-                materials: pkg.materials_json ? JSON.parse(pkg.materials_json) : {}
-            };
-
-            packageFeatures[key] = pkg.features ? JSON.parse(pkg.features) : [];
+        Object.entries(data.packages).forEach(([key, pkg]: [string, any]) => {
+            const normalizedKey = key.toLowerCase().replace(/\s+/g, '');
+            normalizedPackages[normalizedKey] = pkg;
         });
 
-        return NextResponse.json({ packages, packageFeatures });
-    } catch (error: any) {
-        console.error('CRITICAL: Error fetching pricing data from DB:', error.message);
-        // Fallback or better error message for debugging
+        Object.entries(data.packageFeatures).forEach(([key, features]: [string, any]) => {
+            const normalizedKey = key.toLowerCase().replace(/\s+/g, '');
+            normalizedFeatures[normalizedKey] = features;
+        });
+
         return NextResponse.json({
-            error: 'Failed to read data from database',
-            details: error.message
-        }, { status: 500 });
+            packages: normalizedPackages,
+            packageFeatures: normalizedFeatures
+        });
+    } catch (error: any) {
+        console.error('Error reading pricing JSON:', error);
+        return NextResponse.json({ error: 'Failed to read pricing data' }, { status: 500 });
     }
 }
 
