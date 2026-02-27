@@ -9,8 +9,8 @@ export async function GET() {
         const packageFeatures: Record<string, string[]> = {};
 
         results.forEach((pkg: any) => {
-            // Using lowercase package_name as key for compatibility with current frontend (basic, premium, etc.)
-            const key = pkg.package_name.toLowerCase();
+            // Normalize key: 'Value Plus' -> 'valueplus' to match frontend expectations
+            const key = pkg.package_name.toLowerCase().replace(/\s+/g, '');
 
             packages[key] = {
                 id: pkg.id,
@@ -23,9 +23,13 @@ export async function GET() {
         });
 
         return NextResponse.json({ packages, packageFeatures });
-    } catch (error) {
-        console.error('Error fetching pricing data from DB:', error);
-        return NextResponse.json({ error: 'Failed to read data from database' }, { status: 500 });
+    } catch (error: any) {
+        console.error('CRITICAL: Error fetching pricing data from DB:', error.message);
+        // Fallback or better error message for debugging
+        return NextResponse.json({
+            error: 'Failed to read data from database',
+            details: error.message
+        }, { status: 500 });
     }
 }
 
