@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
 
 import path from 'path';
 import { promises as fs } from 'fs';
@@ -41,6 +40,8 @@ export async function POST(request: Request) {
         // Expecting an array or a specific package object
         // For now, let's support updating a single package by ID
         const { id, package_name, rate_per_sqft, features, materials_json } = body;
+
+        const { query } = await import('@/lib/db');
 
         if (id) {
             await query(

@@ -1,9 +1,10 @@
-import mysql from 'mysql2/promise';
+let pool: any = null;
 
-let pool: mysql.Pool | null = null;
-
-function getPool() {
+async function getPool() {
     if (!pool) {
+        // Dynamic import to prevent crash at startup if module is missing/troublesome
+        const mysql = await import('mysql2/promise');
+
         if (!process.env.DB_USER || !process.env.DB_PASSWORD) {
             console.warn("WARNING: Database environment variables (DB_USER/DB_PASSWORD) are missing!");
         }
@@ -23,7 +24,8 @@ function getPool() {
 
 export async function query(sql: string, params?: any[]) {
     try {
-        const [results] = await getPool().execute(sql, params);
+        const poolInstance = await getPool();
+        const [results] = await poolInstance.execute(sql, params);
         return results;
     } catch (error: any) {
         console.error('Database query error:', error.message);
