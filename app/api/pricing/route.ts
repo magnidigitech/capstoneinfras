@@ -1,30 +1,57 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const dataFilePath = path.join(process.cwd(), 'data', 'pricing.json');
+import { query } from '@/lib/db';
 
 export async function GET() {
     try {
-        const fileContents = await fs.readFile(dataFilePath, 'utf8');
-        const data = JSON.parse(fileContents);
-        return NextResponse.json(data);
+        const results: any = await query('SELECT * FROM packages');
+
+        const packages: Record<string, any> = {};
+        const packageFeatures: Record<string, string[]> = {};
+
+        results.forEach((pkg: any) => {
+            // Using lowercase package_name as key for compatibility with current frontend (basic, premium, etc.)
+            const key = pkg.package_name.toLowerCase();
+
+            packages[key] = {
+                id: pkg.id,
+                name: pkg.package_name,
+                price: parseFloat(pkg.rate_per_sqft),
+                materials: pkg.materials_json ? JSON.parse(pkg.materials_json) : {}
+            };
+
+            packageFeatures[key] = pkg.features ? JSON.parse(pkg.features) : [];
+        });
+
+        return NextResponse.json({ packages, packageFeatures });
     } catch (error) {
-        console.error('Error reading pricing data:', error);
-        return NextResponse.json({ error: 'Failed to read data' }, { status: 500 });
+        console.error('Error fetching pricing data from DB:', error);
+        return NextResponse.json({ error: 'Failed to read data from database' }, { status: 500 });
     }
 }
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
+        // This is for updating packages from the admin side
+        // Expecting an array or a specific package object
+        // For now, let's support updating a single package by ID
+        const { id, package_name, rate_per_sqft, features, materials_json } = body;
 
-        // Basic validation could go here
+        if (id) {
+            await query(
+                'UPDATE packages SET package_name = ?, rate_per_sqft = ?, features = ?, materials_json = ? WHERE id = ?',
+                [package_name, rate_per_sqft, JSON.stringify(features), JSON.stringify(materials_json), id]
+            );
+        } else {
+            await query(
+                'INSERT INTO packages (package_name, rate_per_sqft, features, materials_json) VALUES (?, ?, ?, ?)',
+                [package_name, rate_per_sqft, JSON.stringify(features), JSON.stringify(materials_json)]
+            );
+        }
 
-        await fs.writeFile(dataFilePath, JSON.stringify(body, null, 2), 'utf8');
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Error writing pricing data:', error);
+        console.error('Error writing pricing data to DB:', error);
         return NextResponse.json({ error: 'Failed to save data' }, { status: 500 });
     }
 }

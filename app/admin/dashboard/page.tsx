@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Save, LogOut, Loader2, CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { Save, LogOut, Loader2, CheckCircle2, Plus, Trash2, Users, FileText, Calendar, MapPin, Phone, Mail, ExternalLink } from "lucide-react";
 
 // --- Types ---
 
@@ -13,6 +12,7 @@ type MaterialSpec = {
 };
 
 type PackageData = {
+    id: number;
     name: string;
     price: number;
     materials: {
@@ -44,17 +44,33 @@ type ContentData = {
     faqs: FAQ[];
 };
 
+type Customer = {
+    id: number;
+    name: string;
+    phone: string;
+    email: string;
+    location: string;
+    created_at: string;
+    latest_source: string;
+    request_count: number;
+};
+
 // --- Main Component ---
 
+import { useRouter as useNextRouter } from "next/navigation";
+
 export default function AdminDashboard() {
-    const router = useRouter();
-    const [activeTab, setActiveTab] = useState<"pricing" | "testimonials" | "faqs">("pricing");
+    const router = useNextRouter();
+    const [activeTab, setActiveTab] = useState<"pricing" | "testimonials" | "faqs" | "customers">("pricing");
 
     // State for Pricing
     const [pricingData, setPricingData] = useState<PricingData | null>(null);
 
     // State for Content (Testimonials & FAQs)
     const [contentData, setContentData] = useState<ContentData | null>(null);
+
+    // State for Customers
+    const [customersData, setCustomersData] = useState<Customer[]>([]);
 
     // Global UI State
     const [loading, setLoading] = useState(true);
@@ -68,13 +84,15 @@ export default function AdminDashboard() {
     const fetchAllData = async () => {
         setLoading(true);
         try {
-            const [pricingRes, contentRes] = await Promise.all([
+            const [pricingRes, contentRes, customersRes] = await Promise.all([
                 fetch("/api/pricing"),
-                fetch("/api/content")
+                fetch("/api/content"),
+                fetch("/api/admin/customers")
             ]);
 
             if (pricingRes.ok) setPricingData(await pricingRes.json());
             if (contentRes.ok) setContentData(await contentRes.json());
+            if (customersRes.ok) setCustomersData(await customersRes.json());
         } catch (error) {
             console.error("Error fetching data:", error);
         } finally {
@@ -86,13 +104,26 @@ export default function AdminDashboard() {
         if (!pricingData) return;
         setSaving(true);
         try {
-            const res = await fetch("/api/pricing", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(pricingData),
+            // Updated to support MySQL-backed API which might require separate calls or a unified save
+            // For now, let's stick to the current pattern but iterate over packages
+            const promises = Object.values(pricingData.packages).map(pkg => {
+                const features = pricingData.packageFeatures[pkg.name.toLowerCase()];
+                return fetch("/api/pricing", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        id: pkg.id,
+                        package_name: pkg.name,
+                        rate_per_sqft: pkg.price,
+                        features: features,
+                        materials_json: pkg.materials
+                    }),
+                });
             });
-            if (res.ok) showSuccess();
-            else alert("Failed to save pricing");
+
+            const results = await Promise.all(promises);
+            if (results.every(r => r.ok)) showSuccess();
+            else alert("Failed to save some pricing data");
         } catch (error) {
             console.error("Error saving pricing:", error);
             alert("Error saving pricing");
@@ -249,22 +280,89 @@ export default function AdminDashboard() {
             <main className="container mx-auto px-4 py-8">
                 {/* Tabs */}
                 <div className="flex space-x-4 mb-8 border-b border-gray-200">
-                    <TabButton active={activeTab === "pricing"} onClick={() => setActiveTab("pricing")} label="Pricing" />
-                    <TabButton active={activeTab === "testimonials"} onClick={() => setActiveTab("testimonials")} label="Testimonials" />
-                    <TabButton active={activeTab === "faqs"} onClick={() => setActiveTab("faqs")} label="FAQs" />
+                    <TabButton active={activeTab === "pricing"} onClick={() => setActiveTab("pricing")} label="Pricing" icon={<FileText className="h-4 w-4" />} />
+                    <TabButton active={activeTab === "customers"} onClick={() => setActiveTab("customers")} label="Customers" icon={<Users className="h-4 w-4" />} />
+                    <TabButton active={activeTab === "testimonials"} onClick={() => setActiveTab("testimonials")} label="Testimonials" icon={<CheckCircle2 className="h-4 w-4" />} />
+                    <TabButton active={activeTab === "faqs"} onClick={() => setActiveTab("faqs")} label="FAQs" icon={<CheckCircle2 className="h-4 w-4" />} />
                 </div>
 
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-gray-900 capitalize">{activeTab} Management</h2>
-                    <button
-                        onClick={activeTab === "pricing" ? handleSavePricing : handleSaveContent}
-                        disabled={saving}
-                        className="bg-primary text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
-                    >
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Save Changes
-                    </button>
+                    {activeTab !== "customers" && (
+                        <button
+                            onClick={activeTab === "pricing" ? handleSavePricing : handleSaveContent}
+                            disabled={saving}
+                            className="bg-primary text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save Changes
+                        </button>
+                    )}
                 </div>
+
+                {/* CUSTOMERS TAB */}
+                {activeTab === "customers" && (
+                    <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Customer</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Contact</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Latest Activity</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Location</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {customersData.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                                No customer records found.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        customersData.map((c) => (
+                                            <tr key={c.id} className="hover:bg-gray-50/50 transition-colors group">
+                                                <td className="px-6 py-4">
+                                                    <div className="font-bold text-gray-900">{c.name}</div>
+                                                    <div className="text-xs text-gray-400">{c.request_count} total requests</div>
+                                                </td>
+                                                <td className="px-6 py-4 space-y-1">
+                                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                        <Phone className="h-3 w-3" /> {c.phone}
+                                                    </div>
+                                                    {c.email && (
+                                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                            <Mail className="h-3 w-3" /> {c.email}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${c.latest_source === 'Calculator' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                                                        }`}>
+                                                        {c.latest_source || 'Unknown'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                        <MapPin className="h-3 w-3" /> {c.location || 'N/A'}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                        <Calendar className="h-3 w-3" />
+                                                        {new Date(c.created_at).toLocaleDateString('en-IN')}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
 
                 {/* PRICING TAB */}
                 {activeTab === "pricing" && (
@@ -399,13 +497,14 @@ export default function AdminDashboard() {
     );
 }
 
-function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function TabButton({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: React.ReactNode }) {
     return (
         <button
             onClick={onClick}
-            className={`pb-4 px-2 text-sm font-medium transition-colors relative ${active ? "text-primary border-b-2 border-primary" : "text-gray-500 hover:text-gray-700"
+            className={`pb-4 px-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${active ? "text-primary border-b-2 border-primary" : "text-gray-500 hover:text-gray-700"
                 }`}
         >
+            {icon}
             {label}
         </button>
     );

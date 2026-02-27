@@ -17,6 +17,7 @@ type MaterialSpec = {
 };
 
 type PackageData = {
+    id: number;
     name: string;
     price: number;
     materials: {
@@ -95,7 +96,7 @@ function CalculatorContent() {
         inputs.whatsapp.trim().length >= 10 &&
         inputs.location.trim().length > 0;
 
-    const handleCalculate = () => {
+    const handleCalculate = async () => {
         if (!isValid || !packages) return;
 
         const floors = parseInt(inputs.floors);
@@ -140,6 +141,31 @@ This is an automated quote request from ${WHATSAPP_CONFIG.businessName} - Constr
         const whatsappUrl = `https://wa.me/${WHATSAPP_CONFIG.businessNumber}?text=${encodedMessage}`;
 
         setShowSuccess(true);
+
+        // Submit to API
+        try {
+            await fetch("/api/form-submit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: inputs.name,
+                    phone: inputs.whatsapp,
+                    email: inputs.email,
+                    location: inputs.location,
+                    source: "Calculator",
+                    packageId: packageData.id,
+                    length: inputs.length,
+                    width: inputs.width,
+                    baseArea: baseArea,
+                    floors: floors,
+                    totalArea: totalArea,
+                    estimatedCost: totalCost
+                })
+            });
+        } catch (error) {
+            console.error("Failed to store quote in DB:", error);
+        }
+
         setTimeout(() => {
             window.open(whatsappUrl, '_blank');
             setShowSuccess(false);
