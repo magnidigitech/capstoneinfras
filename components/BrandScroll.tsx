@@ -32,15 +32,16 @@ function BrandItem({ brand }: { brand: typeof brands[0] }) {
         <div className="relative h-12 w-32 flex-shrink-0 grayscale hover:grayscale-0 transition-all opacity-60 hover:opacity-100 flex items-center justify-center">
             {!hasError ? (
                 <Image
-                    src={`https://cdn.brandfetch.io/${brand.domain}`}
+                    src={`https://logo.clearbit.com/${brand.domain}`}
                     alt={brand.name}
-                    width={128}
-                    height={48}
-                    className="max-h-12 max-w-full object-contain"
+                    width={100}
+                    height={40}
+                    className="max-h-10 max-w-full object-contain"
                     onError={() => setHasError(true)}
+                    unoptimized={true} // Bypasses Next.js image optimization for faster loading of simple external logos
                 />
             ) : (
-                <div className="text-xs font-bold text-gray-400 text-center border border-gray-100 rounded bg-gray-50 p-2 w-full h-full flex items-center justify-center">
+                <div className="px-3 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-400 uppercase tracking-tighter text-center">
                     {brand.name}
                 </div>
             )}
@@ -50,27 +51,28 @@ function BrandItem({ brand }: { brand: typeof brands[0] }) {
 
 export function BrandScroll() {
     return (
-        <section className="py-10 bg-white border-b border-gray-100 overflow-hidden">
-            <div className="container mx-auto px-4 mb-6 text-center">
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Trusted Brands We Use</p>
+        <section className="py-12 bg-white border-y border-gray-50 overflow-hidden">
+            <div className="container mx-auto px-4 mb-8 text-center">
+                <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] mb-2">Technical Partners</p>
+                <div className="h-0.5 w-12 bg-secondary/10 mx-auto"></div>
             </div>
 
-            <div className="flex relative overflow-hidden">
-                {/* Gradient Masks */}
-                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white to-transparent z-10"></div>
-                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white to-transparent z-10"></div>
+            <div className="flex relative overflow-hidden group">
+                {/* Visual Depth Masks */}
+                <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
 
                 <motion.div
-                    className="flex gap-16 items-center"
+                    className="flex gap-20 items-center py-2"
                     animate={{ x: ["0%", "-50%"] }}
                     transition={{
-                        duration: 40,
+                        duration: 60,
                         repeat: Infinity,
                         ease: "linear",
                     }}
                     style={{ width: "fit-content" }}
                 >
-                    {/* Duplicate the list to create seamless loop */}
+                    {/* Duplicate set for seamless infinite loop */}
                     {[...brands, ...brands].map((brand, index) => (
                         <BrandItem key={`${brand.name}-${index}`} brand={brand} />
                     ))}
