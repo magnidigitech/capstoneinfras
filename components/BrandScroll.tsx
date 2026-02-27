@@ -1,6 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
+import { useState } from "react";
 
 const brands = [
     { name: "UltraTech Cement", domain: "ultratechcement.com" },
@@ -22,6 +24,29 @@ const brands = [
     { name: "Nerolac", domain: "nerolac.com" },
     { name: "Pidilite", domain: "pidilite.com" },
 ];
+
+function BrandItem({ brand }: { brand: typeof brands[0] }) {
+    const [hasError, setHasError] = useState(false);
+
+    return (
+        <div className="relative h-12 w-32 flex-shrink-0 grayscale hover:grayscale-0 transition-all opacity-60 hover:opacity-100 flex items-center justify-center">
+            {!hasError ? (
+                <Image
+                    src={`https://cdn.brandfetch.io/${brand.domain}`}
+                    alt={brand.name}
+                    width={128}
+                    height={48}
+                    className="max-h-12 max-w-full object-contain"
+                    onError={() => setHasError(true)}
+                />
+            ) : (
+                <div className="text-xs font-bold text-gray-400 text-center border border-gray-100 rounded bg-gray-50 p-2 w-full h-full flex items-center justify-center">
+                    {brand.name}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export function BrandScroll() {
     return (
@@ -47,24 +72,7 @@ export function BrandScroll() {
                 >
                     {/* Duplicate the list to create seamless loop */}
                     {[...brands, ...brands].map((brand, index) => (
-                        <div key={`${brand.name}-${index}`} className="relative h-12 w-32 flex-shrink-0 grayscale hover:grayscale-0 transition-all opacity-60 hover:opacity-100 flex items-center justify-center">
-                            {/* Using standard img tag to avoid Next.js remote pattern issues and allow fallback */}
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={`https://cdn.brandfetch.io/${brand.domain}/w/200/h/100?c=1id/theme=light`}
-                                alt={brand.name}
-                                className="max-h-12 max-w-full object-contain"
-                                onError={(e) => {
-                                    // Fallback to text if image fails
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                    const parent = (e.target as HTMLImageElement).parentElement;
-                                    if (parent) {
-                                        parent.innerText = brand.name;
-                                        parent.className = "relative h-12 w-32 flex-shrink-0 flex items-center justify-center text-xs font-bold text-gray-400 text-center border border-gray-100 rounded bg-gray-50 p-2";
-                                    }
-                                }}
-                            />
-                        </div>
+                        <BrandItem key={`${brand.name}-${index}`} brand={brand} />
                     ))}
                 </motion.div>
             </div>

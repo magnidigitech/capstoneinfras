@@ -9,6 +9,7 @@ export default function ContactPage() {
         firstName: "",
         lastName: "",
         email: "",
+        phone: "",
         projectType: "Structural Design",
         message: ""
     });
@@ -27,7 +28,7 @@ export default function ContactPage() {
                 body: JSON.stringify({
                     name: `${formData.firstName} ${formData.lastName}`,
                     email: formData.email,
-                    phone: "N/A", // We should probably add a phone field to the contact form
+                    phone: formData.phone,
                     projectType: formData.projectType,
                     message: formData.message,
                     source: "Contact Form"
@@ -36,7 +37,7 @@ export default function ContactPage() {
 
             if (res.ok) {
                 setStatus('success');
-                setFormData({ firstName: "", lastName: "", email: "", projectType: "Structural Design", message: "" });
+                setFormData({ firstName: "", lastName: "", email: "", phone: "", projectType: "Structural Design", message: "" });
             } else {
                 setStatus('error');
             }
@@ -104,6 +105,14 @@ export default function ContactPage() {
                                     className="w-full p-3 bg-gray-50 rounded-lg border-0 focus:ring-2 focus:ring-primary/20"
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                />
+                                <input
+                                    type="tel"
+                                    placeholder="Phone Number"
+                                    required
+                                    className="w-full p-3 bg-gray-50 rounded-lg border-0 focus:ring-2 focus:ring-primary/20"
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                 />
                                 <select
                                     className="w-full p-3 bg-gray-50 rounded-lg border-0 focus:ring-2 focus:ring-primary/20 text-gray-500"
